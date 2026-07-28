@@ -1,0 +1,14 @@
+# Compiled output
+*.o
+*.out
+sql_engine
+src/lexer.tab.*
+src/parser.tab.*
+src/lex.yy.c
+
+# Data files (generated at runtime)
+data/
+
+# Python cache
+__pycache__/
+*.pyc
