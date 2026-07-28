@@ -1,35 +1,34 @@
 #include <stdio.h>
-#include <string.h>       /* ← this was missing! */
+#include <string.h>
 #include "table.h"
 
+/* Bison-generated parser entry point */
+extern int yyparse(void);
+
+/* Flex-generated buffer functions — used to parse one line at a time */
+typedef struct yy_buffer_state *YY_BUFFER_STATE;
+extern YY_BUFFER_STATE yy_scan_string(const char *yystr);
+extern void yy_delete_buffer(YY_BUFFER_STATE b);
+
 int main() {
-    /* 1. Create table */
-    Column cols[3] = {
-        {"id",   "INT"},
-        {"name", "VARCHAR"},
-        {"age",  "INT"}
-    };
-    Table *t = create_table("students", cols, 3);
+    char input[1024];
 
-    /* 2. Manually insert rows */
-    strcpy(t->rows[0].values[0], "1");
-    strcpy(t->rows[0].values[1], "Alice");
-    strcpy(t->rows[0].values[2], "20");
-    t->row_count++;
+    printf("Mini SQL Engine (type 'exit;' to quit)\n");
 
-    strcpy(t->rows[1].values[0], "2");
-    strcpy(t->rows[1].values[1], "Bob");
-    strcpy(t->rows[1].values[2], "22");
-    t->row_count++;
+    while (1) {
+        printf("sql> ");
+        if (!fgets(input, sizeof(input), stdin)) break;   /* Ctrl+D / EOF */
 
-    /* 3. Save and free */
-    save_table(t);
-    free_table(t);
+        input[strcspn(input, "\n")] = '\0';   /* strip trailing newline */
 
-    /* 4. Reload and print */
-    Table *loaded = load_table("students");
-    print_table(loaded);
-    free_table(loaded);
+        if (strlen(input) == 0) continue;
+        if (strcmp(input, "exit;") == 0 || strcmp(input, "exit") == 0) break;
 
+        YY_BUFFER_STATE buf = yy_scan_string(input);
+        yyparse();
+        yy_delete_buffer(buf);
+    }
+
+    printf("Goodbye!\n");
     return 0;
 }
