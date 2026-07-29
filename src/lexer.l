@@ -9,7 +9,7 @@
 
 %%
 
-[ \t]+                        ; /* skip whitespace */
+[ \r\t]+                        ; /* skip whitespace */
 \n                             ; /* skip newline */
 
 [Cc][Rr][Ee][Aa][Tt][Ee]      { return CREATE; }
@@ -38,6 +38,9 @@
 "*"                              { return STAR; }
 ";"                              { return SEMICOLON; }
 "="                              { return EQ; }
+">="                             { return GE; } 
+"<="                             { return LE; } 
+"!="                             { return NE; }
 ">"                              { return GT; }
 "<"                              { return LT; }
 

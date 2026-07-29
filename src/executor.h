@@ -23,4 +23,8 @@ void execute_select(const char *table_name);
 /* Helper: removes the surrounding single quotes from a string literal */
 char *strip_quotes(const char *s);
 
+void set_condition(const char *column, const char *op, const char *value); 
+void reset_condition_buffer(void); 
+void execute_select_where(const char *table_name); 
+
 #endif
