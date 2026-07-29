@@ -4,6 +4,15 @@
 #include "table.h"
 #include "executor.h"
 
+/* Helper: removes the surrounding single quotes from a string literal */
+char *strip_quotes(const char *s) {
+    int len = strlen(s);
+    char *out = malloc(len);
+    strncpy(out, s + 1, len - 2);
+    out[len - 2] = '\0';
+    return out;
+}
+
 /* ================= CREATE TABLE ================= */
 static Column col_buffer[MAX_COLS];
 static int col_buffer_count = 0;

@@ -1,18 +1,16 @@
 # Compiled output
 *.o
 *.out
+*.exe
 sql_engine
-src/lexer.tab.*
-src/parser.tab.*
 src/lex.yy.c
+src/parser.tab.c
+src/parser.tab.h
 
 # Data files (generated at runtime)
-data/
+data/*
+!data/.gitkeep
 
 # Python cache
 __pycache__/
 *.pyc
-
-src/lex.yy.c
-src/parser.tab.c
-src/parser.tab.h

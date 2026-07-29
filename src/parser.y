@@ -21,7 +21,7 @@ void yyerror(const char *s);
 %token EQ GT LT GE LE NE
 %token <sval> IDENTIFIER STRING
 %token <ival> NUMBER
-%token <fval> FLOAT_NUM
+%token <fval> FLOATNUM
 
 %type <sval> value type_name
 
@@ -91,7 +91,7 @@ value:
           snprintf(buf, sizeof(buf), "%d", $1);
           $$ = strdup(buf);
       }
-    | FLOAT_NUM
+    | FLOATNUM
       {
           char buf[32];
           snprintf(buf, sizeof(buf), "%g", $1);
@@ -99,7 +99,9 @@ value:
       }
     | STRING
       {
-          $$ = $1;
+          char *clean = strip_quotes($1);
+          $$ = clean;
+          free($1);
       }
     ;
 
