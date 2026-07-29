@@ -10,19 +10,20 @@ void yyerror(const char *s);
 %}
 
 %union {
-    int   ival;
+    int ival;
     float fval;
     char *sval;
 }
 
 %token CREATE TABLE INSERT INTO VALUES SELECT FROM WHERE
 %token INT_TYPE VARCHAR_TYPE FLOAT_TYPE
-%token COMMA LPAREN RPAREN STAR SEMICOLON EQ GT LT
-%token <ival> NUMBER
-%token <fval> FLOATNUM
+%token STAR COMMA SEMICOLON LPAREN RPAREN
+%token EQ GT LT GE LE NE
 %token <sval> IDENTIFIER STRING
+%token <ival> NUMBER
+%token <fval> FLOAT_NUM
 
-%type <sval> data_type
+%type <sval> value type_name
 
 %%
 
@@ -32,7 +33,6 @@ statement:
     | select_stmt
     ;
 
-/* ── CREATE TABLE ── */
 create_stmt:
     CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN SEMICOLON
     {
@@ -48,7 +48,7 @@ column_def_list:
     ;
 
 column_def:
-    IDENTIFIER data_type
+    IDENTIFIER type_name
     {
         add_column_to_buffer($1, $2);
         free($1);
@@ -56,13 +56,12 @@ column_def:
     }
     ;
 
-data_type:
+type_name:
       INT_TYPE      { $$ = strdup("INT"); }
     | VARCHAR_TYPE   { $$ = strdup("VARCHAR"); }
     | FLOAT_TYPE     { $$ = strdup("FLOAT"); }
     ;
 
-/* ── INSERT INTO ── */
 insert_stmt:
     INSERT INTO IDENTIFIER VALUES LPAREN value_list RPAREN SEMICOLON
     {
@@ -74,39 +73,50 @@ insert_stmt:
 
 value_list:
       value
+      {
+          add_value_to_buffer($1);
+          free($1);
+      }
     | value_list COMMA value
+      {
+          add_value_to_buffer($3);
+          free($3);
+      }
     ;
 
 value:
       NUMBER
       {
-          char buf[64];
-          sprintf(buf, "%d", $1);
-          add_value_to_buffer(buf);
+          char buf[32];
+          snprintf(buf, sizeof(buf), "%d", $1);
+          $$ = strdup(buf);
       }
-    | FLOATNUM
+    | FLOAT_NUM
       {
-          char buf[64];
-          sprintf(buf, "%f", $1);
-          add_value_to_buffer(buf);
+          char buf[32];
+          snprintf(buf, sizeof(buf), "%g", $1);
+          $$ = strdup(buf);
       }
     | STRING
       {
-          char *clean = strip_quotes($1);
-          add_value_to_buffer(clean);
-          free(clean);
-          free($1);
+          $$ = $1;
       }
     ;
 
-/* ── SELECT ── */
 select_stmt:
-    SELECT select_list FROM IDENTIFIER SEMICOLON
-    {
-        execute_select($4);
-        reset_select_buffer();
-        free($4);
-    }
+      SELECT select_list FROM IDENTIFIER SEMICOLON
+      {
+          execute_select($4);
+          reset_select_buffer();
+          free($4);
+      }
+    | SELECT select_list FROM IDENTIFIER WHERE condition SEMICOLON
+      {
+          execute_select_where($4);
+          reset_select_buffer();
+          reset_condition_buffer();
+          free($4);
+      }
     ;
 
 select_list:
@@ -126,8 +136,18 @@ select_list:
       }
     ;
 
+condition:
+      IDENTIFIER EQ value  { set_condition($1, "=",  $3); free($1); free($3); }
+    | IDENTIFIER GT value  { set_condition($1, ">",  $3); free($1); free($3); }
+    | IDENTIFIER LT value  { set_condition($1, "<",  $3); free($1); free($3); }
+    | IDENTIFIER GE value  { set_condition($1, ">=", $3); free($1); free($3); }
+    | IDENTIFIER LE value  { set_condition($1, "<=", $3); free($1); free($3); }
+    | IDENTIFIER NE value  { set_condition($1, "!=", $3); free($1); free($3); }
+    ;
+
 %%
 
 void yyerror(const char *s) {
     fprintf(stderr, "Syntax error: %s\n", s);
+    fflush(stderr);
 }
