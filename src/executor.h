@@ -27,4 +27,8 @@ void set_condition(const char *column, const char *op, const char *value);
 void reset_condition_buffer(void); 
 void execute_select_where(const char *table_name); 
 
+void set_aggregate(const char *func, const char *col);
+void reset_aggregate(void);
+void apply_aggregate(Table *t);
+
 #endif
