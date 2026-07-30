@@ -76,6 +76,57 @@ void execute_insert(const char *table_name) {
     free_table(t);
 }
 
+/* ================= AGGREGATE FUNCTIONS (Member 3) ================= */
+static char agg_func[16] = "";
+static char agg_col[MAX_NAME] = "";
+static int is_agg = 0;
+
+void set_aggregate(const char *func, const char *col) {
+    strncpy(agg_func, func, 15);
+    strncpy(agg_col, col, MAX_NAME - 1);
+    is_agg = 1;
+}
+
+void reset_aggregate(void) {
+    agg_func[0] = '\0';
+    agg_col[0] = '\0';
+    is_agg = 0;
+}
+
+void apply_aggregate(Table *t) {
+    if (!t || t->row_count == 0) {
+        printf("| Result |\n|--------|\n| NULL   |\n");
+        return;
+    }
+
+    if (strcmp(agg_func, "COUNT") == 0) {
+        printf("| COUNT |\n|-------|\n| %-5d |\n", t->row_count);
+        return;
+    }
+
+    int idx = get_col_index(t, agg_col);
+    if (idx == -1) {
+        fprintf(stderr, "Error: column '%s' does not exist.\n", agg_col);
+        return;
+    }
+
+    double sum = 0;
+    double min = atof(t->rows[0].values[idx]);
+    double max = min;
+
+    for (int r = 0; r < t->row_count; r++) {
+        double val = atof(t->rows[r].values[idx]);
+        sum += val;
+        if (val < min) min = val;
+        if (val > max) max = val;
+    }
+
+    if (strcmp(agg_func, "SUM") == 0) printf("| SUM   |\n|-------|\n| %-5.2f |\n", sum);
+    if (strcmp(agg_func, "AVG") == 0) printf("| AVG   |\n|-------|\n| %-5.2f |\n", sum / t->row_count);
+    if (strcmp(agg_func, "MIN") == 0) printf("| MIN   |\n|-------|\n| %-5.2f |\n", min);
+    if (strcmp(agg_func, "MAX") == 0) printf("| MAX   |\n|-------|\n| %-5.2f |\n", max);
+}
+
 /* ================= SELECT ================= */
 static char select_buffer[MAX_COLS][MAX_NAME];
 static int select_buffer_count = 0;
@@ -124,19 +175,20 @@ void execute_select(const char *table_name) {
     Table *t = load_table(table_name);
     if (!t) return;
 
-    /* Case 1: SELECT * FROM table */
+   /* Case 1: SELECT * FROM table */
     if (select_buffer_count == 1 && strcmp(select_buffer[0], "*") == 0) {
-        print_table(t);
+        if (is_agg) apply_aggregate(t);
+        else print_table(t);
         free_table(t);
         return;
     }
 
-    /* Case 2: SELECT specific columns -- build a temporary projected table.
-       static: avoids the stack-overflow bug Member 1 hit (Table is ~5MB). */
+     /* Case 2: SELECT specific columns */
     static Table proj;
     build_projection(t, &proj);
     if (proj.col_count > 0) {
-        print_table(&proj);
+        if (is_agg) apply_aggregate(&proj);
+        else print_table(&proj);
     }
     free_table(t);
 }
@@ -219,12 +271,14 @@ void execute_select_where(const char *table_name) {
     }
 
     if (select_all) {
-        print_table(&filtered);
+        if (is_agg) apply_aggregate(&filtered);
+        else print_table(&filtered);
     } else {
         static Table proj;
         build_projection(&filtered, &proj);
         if (proj.col_count > 0) {
-            print_table(&proj);
+            if (is_agg) apply_aggregate(&proj);
+            else print_table(&proj);
         }
     }
 

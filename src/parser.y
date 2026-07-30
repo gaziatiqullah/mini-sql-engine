@@ -19,6 +19,7 @@ void yyerror(const char *s);
 %token INT_TYPE VARCHAR_TYPE FLOAT_TYPE
 %token STAR COMMA SEMICOLON LPAREN RPAREN
 %token EQ GT LT GE LE NE
+%token COUNT SUM AVG MIN MAX
 %token <sval> IDENTIFIER STRING
 %token <ival> NUMBER
 %token <fval> FLOATNUM
@@ -122,21 +123,53 @@ select_stmt:
     ;
 
 select_list:
-      STAR
+    STAR
+    {
+        add_select_column("*");
+    }
+| IDENTIFIER
+    {
+        add_select_column($1);
+        free($1);
+    }
+| select_list COMMA IDENTIFIER
+    {
+        add_select_column($3);
+        free($3);
+    }
+
+/* --- Member 3: Aggregate Functions --- */
+| COUNT LPAREN STAR RPAREN
       {
-          add_select_column("*");
+          add_select_column("*");  
+          set_aggregate("COUNT", "*");
       }
-    | IDENTIFIER
+    | SUM LPAREN IDENTIFIER RPAREN
       {
-          add_select_column($1);
-          free($1);
-      }
-    | select_list COMMA IDENTIFIER
-      {
-          add_select_column($3);
+          add_select_column($3);   
+          set_aggregate("SUM", $3);
           free($3);
       }
-    ;
+    | AVG LPAREN IDENTIFIER RPAREN
+      {
+          add_select_column($3);   
+          set_aggregate("AVG", $3);
+          free($3);
+      }
+    | MIN LPAREN IDENTIFIER RPAREN
+      {
+          add_select_column($3);  
+          set_aggregate("MIN", $3);
+          free($3);
+      }
+    | MAX LPAREN IDENTIFIER RPAREN
+      {
+          add_select_column($3);   
+          set_aggregate("MAX", $3);
+          free($3);
+      }
+;
+
 
 condition:
       IDENTIFIER EQ value  { set_condition($1, "=",  $3); free($1); free($3); }
