@@ -170,6 +170,26 @@ select_list:
       }
 ;
 
+subquery_start:
+      /* empty */
+      {
+          save_outer_select_buffer();
+          enable_subquery_mode();
+      }
+    ;
+
+subquery_stmt:
+      SELECT select_list FROM IDENTIFIER
+      {
+          execute_select($4);
+          free($4);
+      }
+    | SELECT select_list FROM IDENTIFIER WHERE condition
+      {
+          execute_select_where($4);
+          free($4);
+      }
+    ;
 
 condition:
       IDENTIFIER EQ value  { set_condition($1, "=",  $3); free($1); free($3); }
@@ -178,6 +198,55 @@ condition:
     | IDENTIFIER GE value  { set_condition($1, ">=", $3); free($1); free($3); }
     | IDENTIFIER LE value  { set_condition($1, "<=", $3); free($1); free($3); }
     | IDENTIFIER NE value  { set_condition($1, "!=", $3); free($1); free($3); }
+    
+    | IDENTIFIER EQ LPAREN subquery_start subquery_stmt RPAREN
+      {
+          disable_subquery_mode();
+          set_condition($1, "=", get_subquery_result());
+          restore_outer_select_buffer();
+          reset_aggregate();
+          free($1);
+      }
+    | IDENTIFIER GT LPAREN subquery_start subquery_stmt RPAREN
+      {
+          disable_subquery_mode();
+          set_condition($1, ">", get_subquery_result());
+          restore_outer_select_buffer();
+          reset_aggregate();
+          free($1);
+      }
+    | IDENTIFIER LT LPAREN subquery_start subquery_stmt RPAREN
+      {
+          disable_subquery_mode();
+          set_condition($1, "<", get_subquery_result());
+          restore_outer_select_buffer();
+          reset_aggregate();
+          free($1);
+      }
+    | IDENTIFIER GE LPAREN subquery_start subquery_stmt RPAREN
+      {
+          disable_subquery_mode();
+          set_condition($1, ">=", get_subquery_result());
+          restore_outer_select_buffer();
+          reset_aggregate();
+          free($1);
+      }
+    | IDENTIFIER LE LPAREN subquery_start subquery_stmt RPAREN
+      {
+          disable_subquery_mode();
+          set_condition($1, "<=", get_subquery_result());
+          restore_outer_select_buffer();
+          reset_aggregate();
+          free($1);
+      }
+    | IDENTIFIER NE LPAREN subquery_start subquery_stmt RPAREN
+      {
+          disable_subquery_mode();
+          set_condition($1, "!=", get_subquery_result());
+          restore_outer_select_buffer();
+          reset_aggregate();
+          free($1);
+      }
     ;
 
 %%
