@@ -76,6 +76,45 @@ void execute_insert(const char *table_name) {
     free_table(t);
 }
 
+/* ================= SUBQUERY MANAGEMENT (Member 4) ================= */
+static char subquery_val[MAX_VAL] = "";
+static int subquery_mode = 0;
+
+static char select_buffer[MAX_COLS][MAX_NAME];
+static int select_buffer_count = 0;
+
+static char saved_select_buffer[MAX_COLS][MAX_NAME];
+static int saved_select_buffer_count = 0;
+
+void enable_subquery_mode(void) {
+    subquery_mode = 1;
+    subquery_val[0] = '\0';
+}
+
+void disable_subquery_mode(void) {
+    subquery_mode = 0;
+}
+
+char *get_subquery_result(void) {
+    return subquery_val;
+}
+
+void save_outer_select_buffer(void) {
+    saved_select_buffer_count = select_buffer_count;
+    for (int i = 0; i < select_buffer_count; i++) {
+        strncpy(saved_select_buffer[i], select_buffer[i], MAX_NAME);
+    }
+    reset_select_buffer();
+}
+
+void restore_outer_select_buffer(void) {
+    select_buffer_count = 0;
+    for (int i = 0; i < saved_select_buffer_count; i++) {
+        strncpy(select_buffer[i], saved_select_buffer[i], MAX_NAME);
+    }
+    select_buffer_count = saved_select_buffer_count;
+}
+
 /* ================= AGGREGATE FUNCTIONS (Member 3) ================= */
 static char agg_func[16] = "";
 static char agg_col[MAX_NAME] = "";
@@ -95,11 +134,19 @@ void reset_aggregate(void) {
 
 void apply_aggregate(Table *t) {
     if (!t || t->row_count == 0) {
+        if (subquery_mode) {
+            strncpy(subquery_val, "0", MAX_VAL);
+            return;
+        }
         printf("| Result |\n|--------|\n| NULL   |\n");
         return;
     }
 
     if (strcmp(agg_func, "COUNT") == 0) {
+        if (subquery_mode) {
+            snprintf(subquery_val, MAX_VAL, "%d", t->row_count);
+            return;
+        }
         printf("| COUNT |\n|-------|\n| %-5d |\n", t->row_count);
         return;
     }
@@ -121,6 +168,14 @@ void apply_aggregate(Table *t) {
         if (val > max) max = val;
     }
 
+    if (subquery_mode) {
+        if (strcmp(agg_func, "SUM") == 0) snprintf(subquery_val, MAX_VAL, "%g", sum);
+        else if (strcmp(agg_func, "AVG") == 0) snprintf(subquery_val, MAX_VAL, "%g", sum / t->row_count);
+        else if (strcmp(agg_func, "MIN") == 0) snprintf(subquery_val, MAX_VAL, "%g", min);
+        else if (strcmp(agg_func, "MAX") == 0) snprintf(subquery_val, MAX_VAL, "%g", max);
+        return;
+    }
+
     if (strcmp(agg_func, "SUM") == 0) printf("| SUM   |\n|-------|\n| %-5.2f |\n", sum);
     if (strcmp(agg_func, "AVG") == 0) printf("| AVG   |\n|-------|\n| %-5.2f |\n", sum / t->row_count);
     if (strcmp(agg_func, "MIN") == 0) printf("| MIN   |\n|-------|\n| %-5.2f |\n", min);
@@ -128,8 +183,6 @@ void apply_aggregate(Table *t) {
 }
 
 /* ================= SELECT ================= */
-static char select_buffer[MAX_COLS][MAX_NAME];
-static int select_buffer_count = 0;
 
 void add_select_column(const char *name) {
     if (select_buffer_count >= MAX_COLS) return;
@@ -175,7 +228,17 @@ void execute_select(const char *table_name) {
     Table *t = load_table(table_name);
     if (!t) return;
 
-   /* Case 1: SELECT * FROM table */
+    if (subquery_mode && !is_agg) {
+        if (t->row_count > 0) {
+            strncpy(subquery_val, t->rows[0].values[0], MAX_VAL);
+        } else {
+            strncpy(subquery_val, "0", MAX_VAL);
+        }
+        free_table(t);
+        return;
+    }
+
+    /* Case 1: SELECT * FROM table */
     if (select_buffer_count == 1 && strcmp(select_buffer[0], "*") == 0) {
         if (is_agg) apply_aggregate(t);
         else print_table(t);
@@ -183,7 +246,7 @@ void execute_select(const char *table_name) {
         return;
     }
 
-     /* Case 2: SELECT specific columns */
+    /* Case 2: SELECT specific columns */
     static Table proj;
     build_projection(t, &proj);
     if (proj.col_count > 0) {

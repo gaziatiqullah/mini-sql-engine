@@ -31,4 +31,11 @@ void set_aggregate(const char *func, const char *col);
 void reset_aggregate(void);
 void apply_aggregate(Table *t);
 
+/* Subquery management (Member 4) */
+void enable_subquery_mode(void);
+void disable_subquery_mode(void);
+char *get_subquery_result(void);
+void save_outer_select_buffer(void);
+void restore_outer_select_buffer(void);
+
 #endif
