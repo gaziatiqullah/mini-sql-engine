@@ -16,6 +16,7 @@ void yyerror(const char *s);
 }
 
 %token CREATE TABLE INSERT INTO VALUES SELECT FROM WHERE
+%token UPDATE SET DELETE
 %token INT_TYPE VARCHAR_TYPE FLOAT_TYPE
 %token STAR COMMA SEMICOLON LPAREN RPAREN
 %token EQ GT LT GE LE NE
@@ -32,8 +33,10 @@ statement:
       create_stmt
     | insert_stmt
     | select_stmt
+    | update_stmt  
+    | delete_stmt  
     ;
-
+    
 create_stmt:
     CREATE TABLE IDENTIFIER LPAREN column_def_list RPAREN SEMICOLON
     {
@@ -106,6 +109,25 @@ value:
       }
     ;
 
+    update_stmt:
+    UPDATE IDENTIFIER SET IDENTIFIER EQ value WHERE condition SEMICOLON
+    {
+        set_update_data($4, $6);
+        execute_update($2);
+        reset_condition_buffer();
+        free($2); free($4); free($6);
+    }
+    ;
+
+delete_stmt:
+    DELETE FROM IDENTIFIER WHERE condition SEMICOLON
+    {
+        execute_delete($3);
+        reset_condition_buffer();
+        free($3);
+    }
+    ;
+
 select_stmt:
       SELECT select_list FROM IDENTIFIER SEMICOLON
       {
@@ -138,7 +160,6 @@ select_list:
         free($3);
     }
 
-/* --- Member 3: Aggregate Functions --- */
 | COUNT LPAREN STAR RPAREN
       {
           add_select_column("*");  

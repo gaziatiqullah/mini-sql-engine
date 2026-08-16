@@ -11,6 +11,11 @@ void reset_column_buffer(void);
 void add_value_to_buffer(const char *value);
 void reset_value_buffer(void);
 
+/* Update & Delete Management */
+void set_update_data(const char *col, const char *val);
+void execute_update(const char *table_name);
+void execute_delete(const char *table_name);
+
 /* Select buffer (used while parsing SELECT column list) */
 void add_select_column(const char *name);
 void reset_select_buffer(void);

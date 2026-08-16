@@ -5,6 +5,7 @@
 #include "executor.h"
 
 /* Helper: removes the surrounding single quotes from a string literal */
+
 char *strip_quotes(const char *s) {
     int len = strlen(s);
     char *out = malloc(len);
@@ -14,6 +15,7 @@ char *strip_quotes(const char *s) {
 }
 
 /* ================= CREATE TABLE ================= */
+
 static Column col_buffer[MAX_COLS];
 static int col_buffer_count = 0;
 
@@ -34,6 +36,7 @@ void execute_create_table(const char *table_name) {
 }
 
 /* ================= INSERT INTO ================= */
+
 static char value_buffer[MAX_COLS][MAX_VAL];
 static int value_buffer_count = 0;
 
@@ -77,6 +80,7 @@ void execute_insert(const char *table_name) {
 }
 
 /* ================= SUBQUERY MANAGEMENT (Member 4) ================= */
+
 static char subquery_val[MAX_VAL] = "";
 static int subquery_mode = 0;
 
@@ -116,6 +120,7 @@ void restore_outer_select_buffer(void) {
 }
 
 /* ================= AGGREGATE FUNCTIONS (Member 3) ================= */
+
 static char agg_func[16] = "";
 static char agg_col[MAX_NAME] = "";
 static int is_agg = 0;
@@ -198,7 +203,8 @@ void reset_select_buffer(void) {
    Caller must pass a `proj` pointer to storage that outlives this call
    (e.g. a static or heap-allocated Table) -- never a plain stack local,
    since Table is several megabytes and will overflow the default stack. */
-static void build_projection(Table *src, Table *proj) {
+
+   static void build_projection(Table *src, Table *proj) {
     strncpy(proj->name, src->name, MAX_NAME);
     proj->col_count = select_buffer_count;
     proj->row_count = 0;
@@ -257,6 +263,7 @@ void execute_select(const char *table_name) {
 }
 
 /* ================= WHERE condition (Member 2) ================= */
+
 static char cond_column[MAX_NAME];
 static char cond_op[4];
 static char cond_value[MAX_VAL];
@@ -278,6 +285,7 @@ void reset_condition_buffer(void) {
 }
 
 /* Returns 1 if the row satisfies the currently stored condition. */
+
 static int row_matches(Table *t, Row *row) {
     if (!has_condition) return 1;
 
@@ -345,5 +353,72 @@ void execute_select_where(const char *table_name) {
         }
     }
 
+    free_table(t);
+}
+
+/* ================= UPDATE AND DELETE ================= */
+
+static char update_col[MAX_NAME];
+static char update_val[MAX_VAL];
+
+void set_update_data(const char *col, const char *val) {
+    strncpy(update_col, col, MAX_NAME);
+    strncpy(update_val, val, MAX_VAL);
+}
+
+void execute_update(const char *table_name) {
+    Table *t = load_table(table_name);
+    if (!t) return;
+
+    int target_idx = get_col_index(t, update_col);
+    if (target_idx == -1) {
+        fprintf(stderr, "Error: column '%s' to update does not exist.\n", update_col);
+        free_table(t);
+        return;
+    }
+
+    int updated_count = 0;
+    for (int r = 0; r < t->row_count; r++) {
+        if (row_matches(t, &t->rows[r])) {
+            strncpy(t->rows[r].values[target_idx], update_val, MAX_VAL);
+            updated_count++;
+        }
+    }
+
+    if (updated_count > 0) {
+        save_table(t);
+    }
+    
+    printf("%d row(s) updated in '%s'.\n", updated_count, table_name);
+    free_table(t);
+}
+
+void execute_delete(const char *table_name) {
+    Table *t = load_table(table_name);
+    if (!t) return;
+
+    int deleted_count = 0;
+    int r = 0;
+    
+    while (r < t->row_count) {
+        if (row_matches(t, &t->rows[r])) {
+            /* Shift all subsequent rows up by 1 to "delete" the current row */
+            for (int i = r; i < t->row_count - 1; i++) {
+                t->rows[i] = t->rows[i + 1];
+            }
+            t->row_count--;
+            deleted_count++;
+        } else {
+            /* Only increment r if we DID NOT delete a row, 
+               because shifting brings a new row into the current index `r` */
+            r++;
+        }
+    }
+
+    if (deleted_count > 0) {
+        save_table(t);
+    }
+    
+    printf("%d row(s) deleted from '%s'.\n", deleted_count, table_name);
     free_table(t);
 }

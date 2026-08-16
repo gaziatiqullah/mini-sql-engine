@@ -25,6 +25,9 @@
 [Aa][Vv][Gg]                     { return AVG; }
 [Mm][Ii][Nn]                     { return MIN; }
 [Mm][Aa][Xx]                     { return MAX; }
+[Uu][Pp][Dd][Aa][Tt][Ee]         { return UPDATE; }
+[Ss][Ee][Tt]                     { return SET; }
+[Dd][Ee][Ll][Ee][Tt][Ee]         { return DELETE; }
 
 
 [Ii][Nn][Tt]                     { return INT_TYPE; }
